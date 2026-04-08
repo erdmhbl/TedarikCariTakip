@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tedarikçi Cari Takip</title>
+<style>
+  :root {
+    --bg: #ffffff; --bg2: #f5f5f2; --bg3: #eeecea;
+    --text: #1a1a1a; --text2: #555; --text3: #888;
+    --border: rgba(0,0,0,0.12); --border2: rgba(0,0,0,0.22);
+    --accent: #1d9e75; --accent-bg: #e1f5ee;
+    --danger: #e24b4a; --danger-bg: #fcebeb;
+    --warn: #ba7517; --warn-bg: #faeeda;
+    --info: #185fa5; --info-bg: #e6f1fb;
+    --radius: 10px; --radius-lg: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a; --bg2: #252523; --bg3: #2e2e2b;
+      --text: #e8e6e0; --text2: #aaa; --text3: #666;
+      --border: rgba(255,255,255,0.1); --border2: rgba(255,255,255,0.2);
+      --accent: #5dcaa5; --accent-bg: #085041;
+      --danger: #f09595; --danger-bg: #501313;
+      --warn: #ef9f27; --warn-bg: #412402;
+      --info: #85b7eb; --info-bg: #042c53;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg3); color: var(--text); font-size: 15px; line-height: 1.5; }
+  h1 { font-size: 20px; font-weight: 500; }
+  h2 { font-size: 16px; font-weight: 500; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 12px; }
+  .sync-bar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text3); margin-bottom: 16px; padding: 7px 14px; background: var(--bg); border-radius: var(--radius); border: 0.5px solid var(--border); }
+  .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+  .sync-dot.loading { background: var(--warn); animation: pulse 1s infinite; }
+  .sync-dot.error { background: var(--danger); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .tabs { display: flex; gap: 4px; background: var(--bg2); border-radius: var(--radius); padding: 4px; border: 0.5px solid var(--border); flex-wrap: wrap; }
+  .tab { padding: 7px 16px; border-radius: 7px; cursor: pointer; font-size: 14px; color: var(--text2); border: none; background: none; transition: background 0.15s; }
+  .tab.active { background: var(--bg); color: var(--text); box-shadow: 0 0 0 0.5px var(--border2); }
+  .tab:hover:not(.active) { background: var(--bg3); }
+  .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 18px 20px; }
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .metric { background: var(--bg2); border-radius: var(--radius); padding: 14px 16px; }
+  .metric label { display: block; font-size: 12px; color: var(--text3); margin-bottom: 4px; }
+  .metric .val { font-size: 20px; font-weight: 500; }
+  .metric.accent .val { color: var(--accent); }
+  .metric.danger .val { color: var(--danger); }
+  .metric.warn .val { color: var(--warn); }
+  .btn { padding: 8px 16px; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--bg); color: var(--text); cursor: pointer; font-size: 14px; transition: background 0.15s; }
+  .btn:hover { background: var(--bg2); }
+  .btn.primary { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); font-weight: 500; }
+  .btn.primary:hover { opacity: 0.85; }
+  .btn.danger { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 14px; outline: none; font-family: inherit; }
+  input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 2px rgba(29,158,117,0.25); border-color: var(--accent); }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; align-items: end; }
+  .form-group label { display: block; font-size: 12px; color: var(--text3); margin-bottom: 5px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { font-size: 12px; color: var(--text3); font-weight: 500; text-align: left; padding: 8px 10px; border-bottom: 0.5px solid var(--border2); }
+  td { padding: 10px 10px; border-bottom: 0.5px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg2); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+  .badge.green { background: var(--accent-bg); color: var(--accent); }
+  .badge.red { background: var(--danger-bg); color: var(--danger); }
+  .badge.blue { background: var(--info-bg); color: var(--info); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
+  .section-title { font-size: 13px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+  .divider { border: none; border-top: 0.5px solid var(--border); margin: 16px 0; }
+  .empty-state { text-align: center; padding: 32px; color: var(--text3); font-size: 14px; }
+  .delete-btn { background: none; border: none; cursor: pointer; color: var(--text3); padding: 4px 6px; border-radius: 5px; font-size: 16px; line-height: 1; }
+  .delete-btn:hover { color: var(--danger); background: var(--danger-bg); }
+  .page { display: none; }
+  .page.active { display: block; }
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg); border: 0.5px solid var(--border2); border-radius: var(--radius); padding: 10px 16px; font-size: 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); transform: translateY(20px); opacity: 0; transition: all 0.2s; pointer-events: none; z-index: 100; }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+  .filter-bar input, .filter-bar select { width: auto; flex: 1; min-width: 120px; }
+  .cari-row { cursor: pointer; }
+  .cari-row:hover td { background: var(--accent-bg) !important; }
+  .total-row td { font-weight: 600; background: var(--bg2) !important; border-top: 0.5px solid var(--border2); }
+  .pay-btn { background: none; border: none; cursor: pointer; color: var(--accent); padding: 3px 7px; border-radius: 5px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+  .pay-btn:hover { background: var(--accent-bg); }
+  .paid-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 6px; overflow: hidden; }
+  .paid-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+  .back-btn { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 14px; padding: 4px 8px; border-radius: var(--radius); margin-bottom: 12px; display: inline-flex; align-items: center; gap: 4px; }
+  .back-btn:hover { background: var(--bg2); color: var(--text); }
+  .firma-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .firma-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--accent-bg); color: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 600; flex-shrink: 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>📦 Tedarikçi Cari Takip</h1>
+    <div class="tabs">
+      <button class="tab active" onclick="switchPage('ozet', this)">Cari Özet</button>
+      <button class="tab" onclick="switchPage('alimlar', this)">Alımlar</button>
+      <button class="tab" onclick="switchPage('odemeler', this)">Ödemeler</button>
+      <button class="tab" onclick="switchPage('ayarlar', this)">Ayarlar</button>
+    </div>
+  </div>
+
+  <div class="sync-bar">
+    <div class="sync-dot loading" id="sync-dot"></div>
+    <span id="sync-text">Google Sheets'e bağlanıyor...</span>
+    <button class="btn" style="margin-left:auto; padding:4px 12px; font-size:12px;" onclick="loadData()">↻ Yenile</button>
+  </div>
+
+  <!-- CARİ ÖZET -->
+  <div id="page-ozet" class="page active">
+    <div class="metric-grid" id="ozet-metrics"></div>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+        <div class="section-title" style="margin-bottom:0">Firma Bazlı Cari Durum</div>
+        <div style="display:flex; gap:8px;">
+          <input type="text" placeholder="Firma ara..." id="ozet-search" oninput="renderOzet()" style="width:180px; font-size:13px;">
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="ozet-table"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- FİRMA DETAY -->
+  <div id="page-firma" class="page">
+    <div id="firma-detail-content"></div>
+  </div>
+
+  <!-- ALIMLAR -->
+  <div id="page-alimlar" class="page">
+    <div class="card" style="margin-bottom:16px;">
+      <div class="section-title">Yeni Alım Ekle</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Tarih</label><input type="date" id="alim-date"></div>
+        <div class="form-group"><label>Firma Adı</label><input type="text" id="alim-firma" placeholder="Firma adı" list="firma-list"></div>
+        <div class="form-group" style="grid-column:span 2;"><label>Ürün / Açıklama</label><input type="text" id="alim-urun" placeholder="Ürün adı veya açıklama"></div>
+        <div class="form-group"><label>Adet</label><input type="number" id="alim-adet" placeholder="1" min="1" value="1"></div>
+        <div class="form-group"><label>Birim Fiyat (₺)</label><input type="number" id="alim-fiyat" placeholder="0.00" min="0" step="0.01"></div>
+        <div class="form-group"><label>Notlar</label><input type="text" id="alim-not" placeholder="Opsiyonel not"></div>
+        <div class="form-group" style="display:flex; align-items:flex-end;">
+          <button class="btn primary" style="width:100%" id="alim-btn" onclick="addAlim()">+ Ekle</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="filter-bar">
+        <input type="text" placeholder="Firma ara..." id="alim-search" oninput="renderAlimlar()">
+        <input type="text" placeholder="Ürün ara..." id="alim-urun-search" oninput="renderAlimlar()">
+        <select id="alim-firma-filter" onchange="renderAlimlar()"><option value="">Tüm Firmalar</option></select>
+      </div>
+      <div style="overflow-x:auto;"><table id="alimlar-table"></table></div>
+    </div>
+  </div>
+
+  <!-- ÖDEMELER -->
+  <div id="page-odemeler" class="page">
+    <div class="card" style="margin-bottom:16px;">
+      <div class="section-title">Yeni Ödeme Ekle</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Tarih</label><input type="date" id="odeme-date"></div>
+        <div class="form-group"><label>Firma Adı</label><input type="text" id="odeme-firma" placeholder="Firma adı" list="firma-list"></div>
+        <div class="form-group" style="grid-column:span 2;"><label>Ödeme Açıklaması</label><input type="text" id="odeme-aciklama" placeholder="Açıklama"></div>
+        <div class="form-group"><label>Tutar (₺)</label><input type="number" id="odeme-tutar" placeholder="0.00" min="0" step="0.01"></div>
+        <div class="form-group"><label>Ödeme Yöntemi</label>
+          <select id="odeme-yontem">
+            <option>Nakit</option>
+            <option>Havale/EFT</option>
+            <option>Kredi Kartı</option>
+            <option>Mail Order</option>
+            <option>Çek</option>
+            <option>İade Faturası</option>
+            <option>Diğer</option>
+          </select>
+        </div>
+        <div class="form-group" style="display:flex; align-items:flex-end;">
+          <button class="btn primary" style="width:100%" id="odeme-btn" onclick="addOdeme()">+ Ekle</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="filter-bar">
+        <input type="text" placeholder="Firma ara..." id="odeme-search" oninput="renderOdemeler()">
+        <select id="odeme-firma-filter" onchange="renderOdemeler()"><option value="">Tüm Firmalar</option></select>
+      </div>
+      <div style="overflow-x:auto;"><table id="odemeler-table"></table></div>
+    </div>
+  </div>
+
+  <!-- AYARLAR -->
+  <div id="page-ayarlar" class="page">
+    <div class="card" style="margin-bottom:16px;">
+      <h2 style="margin-bottom:16px;">Google Sheets Bağlantısı</h2>
+      <p style="color:var(--text2); font-size:14px; margin-bottom:16px;">
+        Veriler Google Sheets'te saklanır. Script URL'nizi buraya girin.
+      </p>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Google Apps Script URL</label>
+        <input type="text" id="sheets-url" placeholder="https://script.google.com/macros/s/.../exec">
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn primary" onclick="saveScriptUrl()">Kaydet & Bağlan</button>
+        <button class="btn" onclick="loadData()">Bağlantıyı Test Et</button>
+      </div>
+      <hr class="divider">
+      <div class="section-title">Apps Script Kodu</div>
+      <p style="font-size:13px; color:var(--text2); margin-bottom:10px;">
+        Aşağıdaki kodu Google Apps Script'e yapıştırın, deploy edin ve URL'yi yukarıya girin:
+      </p>
+      <pre id="apps-script-code" style="background:var(--bg2); border:0.5px solid var(--border); border-radius:var(--radius); padding:14px; font-size:12px; overflow-x:auto; white-space:pre; color:var(--text2); line-height:1.6;">const SHEET_NAME = 'data';
+
+function doGet(e) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const raw = sheet.getRange('A1').getValue();
+  const data = raw ? JSON.parse(raw) : { alimlar: [], odemeler: [] };
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  sheet.getRange('A1').setValue(e.postData.contents);
+  return ContentService.createTextOutput('OK')
+    .setMimeType(ContentService.MimeType.TEXT);
+}</pre>
+      <button class="btn" style="margin-top:10px; font-size:13px;" onclick="copyScriptCode()">📋 Kodu Kopyala</button>
+      <hr class="divider">
+      <div class="section-title" style="color:var(--danger);">Tehlikeli Bölge</div>
+      <p style="font-size:13px; color:var(--text2); margin-bottom:12px;">Bu işlem geri alınamaz. Tüm veriler silinir.</p>
+      <button class="btn danger" onclick="clearAll()">Tüm verileri sil</button>
+    </div>
+  </div>
+</div>
+
+<datalist id="firma-list"></datalist>
+<div id="toast"></div>
+
+<script>
+/* ===== SHEETS BACKEND ===== */
+const URL_KEY = 'tedarikci_sheets_url';
+let SHEETS_URL = localStorage.getItem(URL_KEY) || '';
+let appState = { alimlar: [], odemeler: [] };
+let isSaving = false;
+
+function setSyncStatus(status, msg) {
+  const dot = document.getElementById('sync-dot');
+  const txt = document.getElementById('sync-text');
+  dot.className = 'sync-dot' + (status === 'loading' ? ' loading' : status === 'error' ? ' error' : '');
+  txt.textContent = msg;
+}
+
+async function loadData() {
+  if (!SHEETS_URL) {
+    setSyncStatus('error', 'Script URL girilmedi — Ayarlar sekmesine gidin.');
+    return;
+  }
+  setSyncStatus('loading', 'Veriler yükleniyor...');
+  try {
+    const res = await fetch(SHEETS_URL);
+    const data = await res.json();
+    appState = data;
+    if (!appState.alimlar) appState.alimlar = [];
+    if (!appState.odemeler) appState.odemeler = [];
+    setSyncStatus('ok', 'Senkronize — ' + new Date().toLocaleTimeString('tr-TR'));
+    renderAll();
+    updateFirmaDatalist();
+  } catch(e) {
+    setSyncStatus('error', 'Bağlantı hatası! URL'yi kontrol edin.');
+  }
+}
+
+async function saveData() {
+  if (!SHEETS_URL) { toast('Script URL girilmedi!'); return; }
+  if (isSaving) return;
+  isSaving = true;
+  setSyncStatus('loading', 'Kaydediliyor...');
+  try {
+    await fetch(SHEETS_URL, {
+      method: 'POST',
+      body: JSON.stringify(appState),
+      headers: { 'Content-Type': 'text/plain' }
+    });
+    setSyncStatus('ok', 'Kaydedildi — ' + new Date().toLocaleTimeString('tr-TR'));
+  } catch(e) {
+    setSyncStatus('error', 'Kayıt hatası!');
+  }
+  isSaving = false;
+}
+
+function saveScriptUrl() {
+  const url = document.getElementById('sheets-url').value.trim();
+  if (!url) { toast('URL boş bırakılamaz'); return; }
+  SHEETS_URL = url;
+  localStorage.setItem(URL_KEY, url);
+  toast('URL kaydedildi, bağlanıyor...');
+  loadData();
+}
+
+function copyScriptCode() {
+  const code = document.getElementById('apps-script-code').textContent;
+  navigator.clipboard.writeText(code).then(() => toast('Kod kopyalandı!'));
+}
+
+/* ===== HELPERS ===== */
+function fmt(n) {
+  if (!n && n !== 0) return '—';
+  return Number(n).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₺';
+}
+
+function fmtDate(s) {
+  if (!s) return '—';
+  const d = new Date(s);
+  if (isNaN(d)) return s;
+  return d.toLocaleDateString('tr-TR');
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function today() { return new Date().toISOString().split('T')[0]; }
+
+function initDates() {
+  ['alim-date', 'odeme-date'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && !el.value) el.value = today();
+  });
+}
+
+let activeTab = 'ozet';
+function switchPage(key, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + key).classList.add('active');
+  if (btn) btn.classList.add('active');
+  activeTab = key;
+  if (key === 'ozet') renderOzet();
+  if (key === 'alimlar') { renderAlimlar(); updateFirmaFilter('alim-firma-filter'); }
+  if (key === 'odemeler') { renderOdemeler(); updateFirmaFilter('odeme-firma-filter'); }
+  if (key === 'ayarlar') {
+    const saved = localStorage.getItem(URL_KEY) || '';
+    document.getElementById('sheets-url').value = saved;
+  }
+}
+
+function getFirmalar() {
+  const set = new Set();
+  appState.alimlar.forEach(r => r.firma && set.add(r.firma.toUpperCase()));
+  appState.odemeler.forEach(r => r.firma && set.add(r.firma.toUpperCase()));
+  return [...set].sort();
+}
+
+function updateFirmaFilter(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const val = sel.value;
+  sel.innerHTML = '<option value="">Tüm Firmalar</option>' + getFirmalar().map(f => `<option value="${f}" ${f === val ? 'selected' : ''}>${f}</option>`).join('');
+}
+
+function updateFirmaDatalist() {
+  const dl = document.getElementById('firma-list');
+  dl.innerHTML = getFirmalar().map(f => `<option value="${f}">`).join('');
+}
+
+function renderAll() {
+  renderOzet();
+  renderAlimlar();
+  renderOdemeler();
+  updateFirmaFilter('alim-firma-filter');
+  updateFirmaFilter('odeme-firma-filter');
+}
+
+/* ===== CARİ HESAP ===== */
+function getCariData() {
+  const firmalar = {};
+  appState.alimlar.forEach(r => {
+    const f = (r.firma || '').toUpperCase();
+    if (!f) return;
+    if (!firmalar[f]) firmalar[f] = { alimlar: [], odemeler: [], toplamAlim: 0, toplamOdeme: 0 };
+    firmalar[f].alimlar.push(r);
+    firmalar[f].toplamAlim += parseFloat(r.toplam) || 0;
+  });
+  appState.odemeler.forEach(r => {
+    const f = (r.firma || '').toUpperCase();
+    if (!f) return;
+    if (!firmalar[f]) firmalar[f] = { alimlar: [], odemeler: [], toplamAlim: 0, toplamOdeme: 0 };
+    firmalar[f].odemeler.push(r);
+    firmalar[f].toplamOdeme += parseFloat(r.tutar) || 0;
+  });
+  return firmalar;
+}
+
+function renderOzet() {
+  const cari = getCariData();
+  const search = (document.getElementById('ozet-search')?.value || '').toLowerCase();
+  const firmalar = Object.keys(cari).filter(f => !search || f.toLowerCase().includes(search));
+
+  let toplamAlim = 0, toplamOdeme = 0, toplamBorc = 0;
+  firmalar.forEach(f => {
+    toplamAlim += cari[f].toplamAlim;
+    toplamOdeme += cari[f].toplamOdeme;
+    const net = cari[f].toplamAlim - cari[f].toplamOdeme;
+    if (net > 0) toplamBorc += net;
+  });
+
+  document.getElementById('ozet-metrics').innerHTML = `
+    <div class="metric"><label>Toplam Alım</label><div class="val warn">${fmt(toplamAlim)}</div></div>
+    <div class="metric"><label>Toplam Ödeme</label><div class="val accent">${fmt(toplamOdeme)}</div></div>
+    <div class="metric"><label>Net Borç</label><div class="val danger">${fmt(toplamBorc)}</div></div>
+    <div class="metric"><label>Tedarikçi Sayısı</label><div class="val">${firmalar.length}</div></div>
+  `;
+
+  const tbl = document.getElementById('ozet-table');
+  if (!firmalar.length) {
+    tbl.innerHTML = `<tr><td colspan="6" class="empty-state">Henüz kayıt girilmedi.</td></tr>`;
+    return;
+  }
+
+  let html = `<thead><tr>
+    <th>Firma</th>
+    <th style="text-align:right">Toplam Alım</th>
+    <th style="text-align:right">Toplam Ödeme</th>
+    <th style="text-align:right">Net Borç / Alacak</th>
+    <th style="text-align:center">Durum</th>
+    <th style="text-align:center">İşlem</th>
+  </tr></thead><tbody>`;
+
+  firmalar.sort((a, b) => {
+    const netA = cari[a].toplamAlim - cari[a].toplamOdeme;
+    const netB = cari[b].toplamAlim - cari[b].toplamOdeme;
+    return netB - netA;
+  }).forEach(f => {
+    const c = cari[f];
+    const net = c.toplamAlim - c.toplamOdeme;
+    const pct = c.toplamAlim > 0 ? Math.min(100, (c.toplamOdeme / c.toplamAlim) * 100) : 100;
+    const durum = net > 0.01 ? `<span class="badge red">🔴 Borcumuz Var</span>` :
+                  net < -0.01 ? `<span class="badge blue">🔵 Alacaklıyız</span>` :
+                  `<span class="badge green">✅ Kapalı</span>`;
+    html += `<tr class="cari-row" onclick="showFirmaDetail('${f}')">
+      <td><strong>${f}</strong>
+        <div class="paid-bar"><div class="paid-bar-fill" style="width:${pct}%"></div></div>
+      </td>
+      <td style="text-align:right">${fmt(c.toplamAlim)}</td>
+      <td style="text-align:right; color:var(--accent)">${fmt(c.toplamOdeme)}</td>
+      <td style="text-align:right; color:${net > 0 ? 'var(--danger)' : net < 0 ? 'var(--info)' : 'var(--accent)'}; font-weight:500">${fmt(Math.abs(net))}${net < 0 ? ' ↑' : ''}</td>
+      <td style="text-align:center">${durum}</td>
+      <td style="text-align:center"><button class="btn" style="font-size:12px; padding:4px 10px;" onclick="event.stopPropagation(); showFirmaDetail('${f}')">Detay →</button></td>
+    </tr>`;
+  });
+
+  html += `<tr class="total-row">
+    <td>TOPLAM</td>
+    <td style="text-align:right">${fmt(toplamAlim)}</td>
+    <td style="text-align:right; color:var(--accent)">${fmt(toplamOdeme)}</td>
+    <td style="text-align:right; color:var(--danger)">${fmt(toplamBorc)}</td>
+    <td></td><td></td>
+  </tr>`;
+
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+/* ===== FİRMA DETAY ===== */
+function showFirmaDetail(firmaAdi) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-firma').classList.add('active');
+
+  const cari = getCariData();
+  const c = cari[firmaAdi] || { alimlar: [], odemeler: [], toplamAlim: 0, toplamOdeme: 0 };
+  const net = c.toplamAlim - c.toplamOdeme;
+  const pct = c.toplamAlim > 0 ? Math.min(100, (c.toplamOdeme / c.toplamAlim) * 100) : 100;
+  const initial = firmaAdi.charAt(0);
+
+  let alimRows = c.alimlar.length ? c.alimlar.map((r, i) => `
+    <tr>
+      <td>${fmtDate(r.date)}</td>
+      <td>${r.urun || '—'}</td>
+      <td style="text-align:right">${r.adet || 1}</td>
+      <td style="text-align:right">${fmt(r.birimFiyat)}</td>
+      <td style="text-align:right; font-weight:500">${fmt(r.toplam)}</td>
+      <td>${r.not || '—'}</td>
+      <td><button class="delete-btn" onclick="deleteAlimFromFirma('${firmaAdi}', ${i})" title="Sil">✕</button></td>
+    </tr>`).join('') : `<tr><td colspan="7" class="empty-state">Alım kaydı yok.</td></tr>`;
+
+  let odemeRows = c.odemeler.length ? c.odemeler.map((r, i) => `
+    <tr>
+      <td>${fmtDate(r.date)}</td>
+      <td>${r.aciklama || '—'}</td>
+      <td style="text-align:right; color:var(--accent); font-weight:500">${fmt(r.tutar)}</td>
+      <td>${r.yontem || '—'}</td>
+      <td><button class="delete-btn" onclick="deleteOdemeFromFirma('${firmaAdi}', ${i})" title="Sil">✕</button></td>
+    </tr>`).join('') : `<tr><td colspan="5" class="empty-state">Ödeme kaydı yok.</td></tr>`;
+
+  document.getElementById('firma-detail-content').innerHTML = `
+    <button class="back-btn" onclick="goBackToOzet()">← Geri</button>
+    <div class="firma-header">
+      <div class="firma-avatar">${initial}</div>
+      <div>
+        <h2>${firmaAdi}</h2>
+        <div style="font-size:13px; color:var(--text3);">Tedarikçi Cari Detayı</div>
+      </div>
+    </div>
+    <div class="metric-grid" style="margin-bottom:20px;">
+      <div class="metric"><label>Toplam Alım</label><div class="val warn">${fmt(c.toplamAlim)}</div></div>
+      <div class="metric"><label>Toplam Ödeme</label><div class="val accent">${fmt(c.toplamOdeme)}</div></div>
+      <div class="metric"><label>${net >= 0 ? 'Net Borç' : 'Net Alacak'}</label><div class="val ${net >= 0 ? 'danger' : ''}">${fmt(Math.abs(net))}</div></div>
+      <div class="metric"><label>Ödeme Oranı</label><div class="val">${pct.toFixed(1)}%</div></div>
+    </div>
+
+    ${net > 0.01 ? `<div class="card" style="margin-bottom:16px; border-color:var(--warn); background:var(--warn-bg);">
+      <div class="section-title" style="color:var(--warn);">💳 Hızlı Ödeme Ekle</div>
+      <div class="form-grid">
+        <div class="form-group"><label>Tutar (₺)</label><input type="number" id="hizli-tutar" placeholder="0.00" min="0" step="0.01"></div>
+        <div class="form-group"><label>Açıklama</label><input type="text" id="hizli-aciklama" placeholder="Ödeme açıklaması"></div>
+        <div class="form-group"><label>Yöntem</label>
+          <select id="hizli-yontem">
+            <option>Nakit</option><option>Havale/EFT</option><option>Kredi Kartı</option>
+            <option>Mail Order</option><option>Çek</option><option>İade Faturası</option><option>Diğer</option>
+          </select>
+        </div>
+        <div class="form-group" style="display:flex; align-items:flex-end;">
+          <button class="btn" style="width:100%; background:var(--warn-bg); color:var(--warn); border-color:var(--warn); font-weight:500;" onclick="addHizliOdeme('${firmaAdi}')">✓ Ödeme Ekle</button>
+        </div>
+      </div>
+    </div>` : ''}
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="section-title">Alım Geçmişi (${c.alimlar.length} kayıt)</div>
+      <div style="overflow-x:auto;"><table>
+        <thead><tr><th>Tarih</th><th>Ürün/Açıklama</th><th style="text-align:right">Adet</th><th style="text-align:right">Birim Fiyat</th><th style="text-align:right">Toplam</th><th>Not</th><th></th></tr></thead>
+        <tbody>${alimRows}</tbody>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Ödeme Geçmişi (${c.odemeler.length} kayıt)</div>
+      <div style="overflow-x:auto;"><table>
+        <thead><tr><th>Tarih</th><th>Açıklama</th><th style="text-align:right">Tutar</th><th>Yöntem</th><th></th></tr></thead>
+        <tbody>${odemeRows}</tbody>
+      </table></div>
+    </div>
+  `;
+}
+
+function goBackToOzet() {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-ozet').classList.add('active');
+  document.querySelectorAll('.tab')[0].classList.add('active');
+  renderOzet();
+}
+
+function deleteAlimFromFirma(firmaAdi, idx) {
+  if (!confirm('Bu alım kaydı silinecek. Emin misiniz?')) return;
+  const firmaAlimlar = appState.alimlar.filter(r => (r.firma || '').toUpperCase() === firmaAdi);
+  const target = firmaAlimlar[idx];
+  const globalIdx = appState.alimlar.indexOf(target);
+  if (globalIdx !== -1) appState.alimlar.splice(globalIdx, 1);
+  showFirmaDetail(firmaAdi);
+  saveData();
+  toast('Alım silindi');
+}
+
+function deleteOdemeFromFirma(firmaAdi, idx) {
+  if (!confirm('Bu ödeme kaydı silinecek. Emin misiniz?')) return;
+  const firmaOdemeler = appState.odemeler.filter(r => (r.firma || '').toUpperCase() === firmaAdi);
+  const target = firmaOdemeler[idx];
+  const globalIdx = appState.odemeler.indexOf(target);
+  if (globalIdx !== -1) appState.odemeler.splice(globalIdx, 1);
+  showFirmaDetail(firmaAdi);
+  saveData();
+  toast('Ödeme silindi');
+}
+
+async function addHizliOdeme(firmaAdi) {
+  const tutar = parseFloat(document.getElementById('hizli-tutar').value);
+  if (!tutar || tutar <= 0) { toast('Geçerli bir tutar girin'); return; }
+  appState.odemeler.push({
+    date: today(),
+    firma: firmaAdi,
+    aciklama: document.getElementById('hizli-aciklama').value.trim() || 'Ödeme',
+    tutar,
+    yontem: document.getElementById('hizli-yontem').value
+  });
+  await saveData();
+  showFirmaDetail(firmaAdi);
+  toast('✓ Ödeme kaydedildi');
+}
+
+/* ===== ALIMLAR ===== */
+function renderAlimlar() {
+  const search = (document.getElementById('alim-search')?.value || '').toLowerCase();
+  const urunSearch = (document.getElementById('alim-urun-search')?.value || '').toLowerCase();
+  const firmaFilter = document.getElementById('alim-firma-filter')?.value || '';
+
+  let rows = appState.alimlar.filter(r => {
+    const f = (r.firma || '').toLowerCase();
+    const u = (r.urun || '').toLowerCase();
+    return (!search || f.includes(search)) &&
+           (!urunSearch || u.includes(urunSearch)) &&
+           (!firmaFilter || (r.firma || '').toUpperCase() === firmaFilter);
+  });
+
+  const tbl = document.getElementById('alimlar-table');
+  if (!rows.length) {
+    tbl.innerHTML = `<tr><td colspan="8" class="empty-state">Kayıt bulunamadı.</td></tr>`;
+    return;
+  }
+
+  let html = `<thead><tr><th>Tarih</th><th>Firma</th><th>Ürün / Açıklama</th><th style="text-align:right">Adet</th><th style="text-align:right">Birim Fiyat</th><th style="text-align:right">Toplam</th><th>Not</th><th></th></tr></thead><tbody>`;
+  let toplamTutar = 0;
+  rows.forEach(r => {
+    toplamTutar += parseFloat(r.toplam) || 0;
+    const globalIdx = appState.alimlar.indexOf(r);
+    html += `<tr>
+      <td>${fmtDate(r.date)}</td>
+      <td><strong>${r.firma || '—'}</strong></td>
+      <td>${r.urun || '—'}</td>
+      <td style="text-align:right">${r.adet || 1}</td>
+      <td style="text-align:right">${fmt(r.birimFiyat)}</td>
+      <td style="text-align:right; font-weight:500">${fmt(r.toplam)}</td>
+      <td style="color:var(--text3); font-size:13px;">${r.not || '—'}</td>
+      <td><button class="delete-btn" onclick="deleteAlim(${globalIdx})" title="Sil">✕</button></td>
+    </tr>`;
+  });
+  html += `<tr class="total-row"><td colspan="5">Toplam (${rows.length} kayıt)</td><td style="text-align:right">${fmt(toplamTutar)}</td><td colspan="2"></td></tr>`;
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+async function addAlim() {
+  const firma = document.getElementById('alim-firma').value.trim().toUpperCase();
+  const urun = document.getElementById('alim-urun').value.trim();
+  const adet = parseFloat(document.getElementById('alim-adet').value) || 1;
+  const birimFiyat = parseFloat(document.getElementById('alim-fiyat').value);
+  if (!firma) { toast('Firma adı gerekli'); return; }
+  if (!birimFiyat || birimFiyat <= 0) { toast('Birim fiyat gerekli'); return; }
+
+  const btn = document.getElementById('alim-btn');
+  btn.disabled = true;
+
+  appState.alimlar.push({
+    date: document.getElementById('alim-date').value,
+    firma, urun, adet, birimFiyat,
+    toplam: adet * birimFiyat,
+    not: document.getElementById('alim-not').value.trim()
+  });
+
+  await saveData();
+  document.getElementById('alim-firma').value = '';
+  document.getElementById('alim-urun').value = '';
+  document.getElementById('alim-adet').value = '1';
+  document.getElementById('alim-fiyat').value = '';
+  document.getElementById('alim-not').value = '';
+  renderAlimlar();
+  updateFirmaFilter('alim-firma-filter');
+  updateFirmaDatalist();
+  toast('✓ Alım eklendi');
+  btn.disabled = false;
+}
+
+async function deleteAlim(idx) {
+  if (!confirm('Bu alım kaydını silmek istiyor musunuz?')) return;
+  appState.alimlar.splice(idx, 1);
+  await saveData();
+  renderAlimlar();
+  toast('Silindi');
+}
+
+/* ===== ÖDEMELER ===== */
+function renderOdemeler() {
+  const search = (document.getElementById('odeme-search')?.value || '').toLowerCase();
+  const firmaFilter = document.getElementById('odeme-firma-filter')?.value || '';
+
+  let rows = appState.odemeler.filter(r => {
+    const f = (r.firma || '').toLowerCase();
+    return (!search || f.includes(search)) &&
+           (!firmaFilter || (r.firma || '').toUpperCase() === firmaFilter);
+  });
+
+  const tbl = document.getElementById('odemeler-table');
+  if (!rows.length) {
+    tbl.innerHTML = `<tr><td colspan="6" class="empty-state">Kayıt bulunamadı.</td></tr>`;
+    return;
+  }
+
+  let html = `<thead><tr><th>Tarih</th><th>Firma</th><th>Açıklama</th><th style="text-align:right">Tutar</th><th>Yöntem</th><th></th></tr></thead><tbody>`;
+  let toplam = 0;
+  rows.forEach(r => {
+    toplam += parseFloat(r.tutar) || 0;
+    const globalIdx = appState.odemeler.indexOf(r);
+    html += `<tr>
+      <td>${fmtDate(r.date)}</td>
+      <td><strong>${r.firma || '—'}</strong></td>
+      <td>${r.aciklama || '—'}</td>
+      <td style="text-align:right; color:var(--accent); font-weight:500">${fmt(r.tutar)}</td>
+      <td><span class="badge blue">${r.yontem || '—'}</span></td>
+      <td><button class="delete-btn" onclick="deleteOdeme(${globalIdx})" title="Sil">✕</button></td>
+    </tr>`;
+  });
+  html += `<tr class="total-row"><td colspan="3">Toplam (${rows.length} kayıt)</td><td style="text-align:right; color:var(--accent)">${fmt(toplam)}</td><td colspan="2"></td></tr>`;
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+async function addOdeme() {
+  const firma = document.getElementById('odeme-firma').value.trim().toUpperCase();
+  const tutar = parseFloat(document.getElementById('odeme-tutar').value);
+  if (!firma) { toast('Firma adı gerekli'); return; }
+  if (!tutar || tutar <= 0) { toast('Tutar gerekli'); return; }
+
+  const btn = document.getElementById('odeme-btn');
+  btn.disabled = true;
+
+  appState.odemeler.push({
+    date: document.getElementById('odeme-date').value,
+    firma,
+    aciklama: document.getElementById('odeme-aciklama').value.trim(),
+    tutar,
+    yontem: document.getElementById('odeme-yontem').value
+  });
+
+  await saveData();
+  document.getElementById('odeme-firma').value = '';
+  document.getElementById('odeme-aciklama').value = '';
+  document.getElementById('odeme-tutar').value = '';
+  renderOdemeler();
+  updateFirmaFilter('odeme-firma-filter');
+  updateFirmaDatalist();
+  toast('✓ Ödeme eklendi');
+  btn.disabled = false;
+}
+
+async function deleteOdeme(idx) {
+  if (!confirm('Bu ödeme kaydını silmek istiyor musunuz?')) return;
+  appState.odemeler.splice(idx, 1);
+  await saveData();
+  renderOdemeler();
+  toast('Silindi');
+}
+
+async function clearAll() {
+  if (!confirm('Tüm veriler silinecek. Emin misiniz?')) return;
+  appState = { alimlar: [], odemeler: [] };
+  await saveData();
+  renderAll();
+  toast('Veriler silindi');
+}
+
+/* ===== INIT ===== */
+initDates();
+if (SHEETS_URL) {
+  loadData();
+} else {
+  setSyncStatus('error', 'Script URL girilmedi — Ayarlar sekmesine gidin.');
+  renderOzet();
+}
+</script>
+</body>
+</html>
